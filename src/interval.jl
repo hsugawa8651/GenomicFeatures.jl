@@ -36,11 +36,11 @@ function GenomicInterval{T}(data) :: GenomicInterval{T} where T
     return data #Note: the returned data is converted to GenomicInterval{T}.
 end
 
-function BioGenerics.seqname(i::GenomicInterval)
+function BioGenerics.seqname(i::AbstractGenomicInterval)
     return i.seqname
 end
 
-function BioGenerics.metadata(i::GenomicInterval)
+function BioGenerics.metadata(i::AbstractGenomicInterval)
     return i.metadata
 end
 
@@ -49,25 +49,50 @@ function strand(i::GenomicInterval)
 end
 
 """
-    leftposition(i::GenomicInterval)
+    leftposition(i::AbstractGenomicInterval)
 
 Return the leftmost position of `i`.
 """
-function BioGenerics.leftposition(i::GenomicInterval)
+function BioGenerics.leftposition(i::AbstractGenomicInterval)
     return i.first
 end
 
 """
-    rightposition(i::GenomicInterval)
+    rightposition(i::AbstractGenomicInterval)
 
 Return the rightmost position of `i`.
 """
-function BioGenerics.rightposition(i::GenomicInterval)
+function BioGenerics.rightposition(i::AbstractGenomicInterval)
     return i.last
 end
 
-IntervalTrees.first(i::GenomicInterval) = leftposition(i)
-IntervalTrees.last(i::GenomicInterval) = rightposition(i)
+IntervalTrees.first(i::AbstractGenomicInterval) = leftposition(i)
+IntervalTrees.last(i::AbstractGenomicInterval) = rightposition(i)
+
+function Base.isless(a::AbstractGenomicInterval{T}, b::AbstractGenomicInterval{T}, seqname_isless::Function=isless) where T
+    a_seqname = seqname(a)
+    b_seqname = seqname(b)
+
+    if a_seqname != b_seqname
+        return seqname_isless(a_seqname, b_seqname)
+    end
+
+    a_leftposition = leftposition(a)
+    b_leftposition = leftposition(b)
+
+    if a_leftposition != b_leftposition
+        return a_leftposition < b_leftposition
+    end
+
+    a_rightposition = rightposition(a)
+    b_rightposition = rightposition(b)
+
+    if a_rightposition != b_rightposition
+        return a_rightposition < b_rightposition
+    end
+
+    return false
+end
 
 function Base.isless(a::GenomicInterval{T}, b::GenomicInterval{T}, seqname_isless::Function=isless) where T
     a_seqname = seqname(a)
@@ -104,9 +129,9 @@ end
 """
 Check if two intervals are well ordered.
 
-`GenomicIntervals` are considered well ordered if seqname(a) <= seqname(b) and leftposition(a) <= leftposition(b).
+`AbstractGenomicIntervals` are considered well ordered if seqname(a) <= seqname(b) and leftposition(a) <= leftposition(b).
 """
-function isordered(a::GenomicInterval{T}, b::GenomicInterval{T}, seqname_isless::Function=isless) where T
+function isordered(a::AbstractGenomicInterval{T}, b::AbstractGenomicInterval{T}, seqname_isless::Function=isless) where T
 
     a_seqname = seqname(a)
     b_seqname = seqname(b)
@@ -128,7 +153,7 @@ end
 """
 Return true if interval `a` entirely precedes `b`.
 """
-function precedes(a::GenomicInterval{T}, b::GenomicInterval{T}, seqname_isless::Function=isless) where T
+function precedes(a::AbstractGenomicInterval{T}, b::AbstractGenomicInterval{T}, seqname_isless::Function=isless) where T
     return (rightposition(a) < leftposition(b) && seqname(a) == seqname(b)) || seqname_isless(seqname(a), seqname(b))::Bool
 end
 
@@ -141,10 +166,21 @@ function Base.:(==)(a::GenomicInterval{T}, b::GenomicInterval{T}) where T
 end
 
 "Return true if interval `a` overlaps interval `b`, with no consideration to strand"
-function BioGenerics.isoverlapping(a::GenomicInterval{S}, b::GenomicInterval{T}) where {S, T}
+function BioGenerics.isoverlapping(a::AbstractGenomicInterval{S}, b::AbstractGenomicInterval{T}) where {S, T}
     return leftposition(a) <= rightposition(b) &&
            leftposition(b) <= rightposition(a) &&
            seqname(a)      == seqname(b)
+end
+
+function Base.show(io::IO, i::AbstractGenomicInterval)
+    if get(io, :compact, false)
+        print(io, i.seqname, ":", i.first, "-", i.last)
+    else
+        println(io, summary(i), ':')
+        println(io, "  sequence name: ", i.seqname)
+        println(io, "  leftmost position: ", i.first)
+        print(io, "  rightmost position: ", i.last)
+    end
 end
 
 function Base.show(io::IO, i::GenomicInterval)
@@ -168,7 +204,7 @@ function metadatatype(x::Any)
     return metadatatype(typeof(x))
 end
 
-function _metadatatype(::Type{GenomicInterval{T}}) where T
+function _metadatatype(::Type{A}) where {T, A <: AbstractGenomicInterval{T}}
     return T
 end
 
