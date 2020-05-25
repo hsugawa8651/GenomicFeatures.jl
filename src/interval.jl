@@ -1,4 +1,4 @@
-# Interval
+# GenomicInterval
 # ========
 #
 # Base interval types and utilities.
@@ -6,9 +6,8 @@
 # This file is a part of BioJulia.
 # License is MIT: https://github.com/BioJulia/Bio.jl/blob/master/LICENSE.md
 
-# Note, just to be clear: this shadows IntervalTrees.Interval
-"A genomic interval specifies interval with some associated metadata"
-struct Interval{T} <: IntervalTrees.AbstractInterval{Int64}
+"A genomic interval specifies interval with some associated metadata."
+struct GenomicInterval{T} <: IntervalTrees.AbstractInterval{Int64}
     seqname::String
     first::Int64
     last::Int64
@@ -16,59 +15,59 @@ struct Interval{T} <: IntervalTrees.AbstractInterval{Int64}
     metadata::T
 end
 
-function Interval(seqname::AbstractString, first::Integer, last::Integer, strand::Union{Strand,Char}=STRAND_BOTH, metadata=nothing)
-    return Interval{typeof(metadata)}(seqname, first, last, strand, metadata)
+function GenomicInterval(seqname::AbstractString, first::Integer, last::Integer, strand::Union{Strand,Char}=STRAND_BOTH, metadata=nothing)
+    return GenomicInterval{typeof(metadata)}(seqname, first, last, strand, metadata)
 end
 
-function Interval(seqname::AbstractString, range::UnitRange{T}, strand::Union{Strand,Char}=STRAND_BOTH, metadata=nothing) where T<:Integer
-    return Interval{typeof(metadata)}(seqname, first(range), last(range), strand, metadata)
+function GenomicInterval(seqname::AbstractString, range::UnitRange{T}, strand::Union{Strand,Char}=STRAND_BOTH, metadata=nothing) where T<:Integer
+    return GenomicInterval{typeof(metadata)}(seqname, first(range), last(range), strand, metadata)
 end
 
 
 """
-    Interval{T}(data)
+    GenomicInterval{T}(data)
 
-The returned data is converted to Interval{T} if there is an implemented [`Base.convert`](https://docs.julialang.org/en/v1/base/base/#Base.convert) function for the type of data.
-This method provides a useful hook for converting custom types to Interval{T}.
+The returned data is converted to GenomicInterval{T} if there is an implemented [`Base.convert`](https://docs.julialang.org/en/v1/base/base/#Base.convert) function for the type of data.
+This method provides a useful hook for converting custom types to GenomicInterval{T}.
 """
-function Interval{T}(data) :: Interval{T} where T
-    return data #Note: the returned data is converted to Interval{T}.
+function GenomicInterval{T}(data) :: GenomicInterval{T} where T
+    return data #Note: the returned data is converted to GenomicInterval{T}.
 end
 
-function BioGenerics.seqname(i::Interval)
+function BioGenerics.seqname(i::GenomicInterval)
     return i.seqname
 end
 
-function BioGenerics.metadata(i::Interval)
+function BioGenerics.metadata(i::GenomicInterval)
     return i.metadata
 end
 
-function strand(i::Interval)
+function strand(i::GenomicInterval)
     return i.strand
 end
 
 """
-    leftposition(i::Interval)
+    leftposition(i::GenomicInterval)
 
 Return the leftmost position of `i`.
 """
-function BioGenerics.leftposition(i::Interval)
+function BioGenerics.leftposition(i::GenomicInterval)
     return i.first
 end
 
 """
-    rightposition(i::Interval)
+    rightposition(i::GenomicInterval)
 
 Return the rightmost position of `i`.
 """
-function BioGenerics.rightposition(i::Interval)
+function BioGenerics.rightposition(i::GenomicInterval)
     return i.last
 end
 
-IntervalTrees.first(i::Interval) = leftposition(i)
-IntervalTrees.last(i::Interval) = rightposition(i)
+IntervalTrees.first(i::GenomicInterval) = leftposition(i)
+IntervalTrees.last(i::GenomicInterval) = rightposition(i)
 
-function Base.isless(a::Interval{T}, b::Interval{T}, seqname_isless::Function=isless) where T
+function Base.isless(a::GenomicInterval{T}, b::GenomicInterval{T}, seqname_isless::Function=isless) where T
     a_seqname = seqname(a)
     b_seqname = seqname(b)
 
@@ -103,9 +102,9 @@ end
 """
 Check if two intervals are well ordered.
 
-Intervals are considered well ordered if seqname(a) <= seqname(b) and leftposition(a) <= leftposition(b).
+`GenomicIntervals` are considered well ordered if seqname(a) <= seqname(b) and leftposition(a) <= leftposition(b).
 """
-function isordered(a::Interval{T}, b::Interval{T}, seqname_isless::Function=isless) where T
+function isordered(a::GenomicInterval{T}, b::GenomicInterval{T}, seqname_isless::Function=isless) where T
 
     a_seqname = seqname(a)
     b_seqname = seqname(b)
@@ -127,11 +126,11 @@ end
 """
 Return true if interval `a` entirely precedes `b`.
 """
-function precedes(a::Interval{T}, b::Interval{T}, seqname_isless::Function=isless) where T
+function precedes(a::GenomicInterval{T}, b::GenomicInterval{T}, seqname_isless::Function=isless) where T
     return (rightposition(a) < leftposition(b) && seqname(a) == seqname(b)) || seqname_isless(seqname(a), seqname(b))::Bool
 end
 
-function Base.:(==)(a::Interval{T}, b::Interval{T}) where T
+function Base.:(==)(a::GenomicInterval{T}, b::GenomicInterval{T}) where T
     return seqname(a)       == seqname(b) &&
            leftposition(a)  == leftposition(b) &&
            rightposition(a) == rightposition(b) &&
@@ -140,13 +139,13 @@ function Base.:(==)(a::Interval{T}, b::Interval{T}) where T
 end
 
 "Return true if interval `a` overlaps interval `b`, with no consideration to strand"
-function BioGenerics.isoverlapping(a::Interval{S}, b::Interval{T}) where {S, T}
+function BioGenerics.isoverlapping(a::GenomicInterval{S}, b::GenomicInterval{T}) where {S, T}
     return leftposition(a) <= rightposition(b) &&
            leftposition(b) <= rightposition(a) &&
            seqname(a)      == seqname(b)
 end
 
-function Base.show(io::IO, i::Interval)
+function Base.show(io::IO, i::GenomicInterval)
     if get(io, :compact, false)
         print(io, seqname(i), ":", leftposition(i), "-", rightposition(i), "  ", strand(i), "  ", metadata(i) === nothing ? "nothing" : metadata(i))
     else
@@ -167,7 +166,7 @@ function metadatatype(x::Any)
     return metadatatype(typeof(x))
 end
 
-function _metadatatype(::Type{Interval{T}}) where T
+function _metadatatype(::Type{GenomicInterval{T}}) where T
     return T
 end
 
